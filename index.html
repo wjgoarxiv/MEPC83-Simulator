@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEPC 83 규제 영향 분석 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <!-- Pretendard Font -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- KaTeX for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" xintegrity="sha384-n8MVd4RsNIU0KOV3CQDEZbtmKytuaON8vzLtr4mvTPR1zKUUXdK1oKOD4e3RVNYs" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" xintegrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" xintegrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --c-dark-blue: #3D52A0; --c-mid-blue: #7091E6; --c-light-blue: #8697C4;
+            --c-pale-blue: #ADBBDA; --c-bg: #EDE8F5; --c-white: #ffffff;
+        }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--c-bg); color: var(--c-dark-blue); }
+        .glass-ui { background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .hero-section { height: 60vh; position: relative; display: flex; align-items: center; justify-content: center; color: white; text-align: center; overflow: hidden; }
+        #hero-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .content-card { background-color: var(--c-white); border: 1px solid var(--c-pale-blue); box-shadow: 0 10px 30px -15px rgba(0,0,0,0.1); transition: opacity 0.6s ease-out, transform 0.6s ease-out; opacity: 0; transform: translateY(30px); }
+        .content-card.is-visible { opacity: 1; transform: translateY(0); }
+        .sidebar { transform: translateX(100%); transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); background-color: #f8f7fb; border-top-left-radius: 1.5rem; border-bottom-left-radius: 1.5rem; }
+        .sidebar.open { transform: translateX(0); }
+        #modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        #modal-backdrop.visible { opacity: 1; pointer-events: auto; }
+        #modal-content { position: fixed; top: 50%; left: 50%; width: 90%; max-width: 640px; transform: translate(-50%, -50%) scale(0.95); opacity: 0; transition: all 0.3s ease-out; pointer-events: none; }
+        #modal-backdrop.visible #modal-content { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: auto; }
+        .toss-button { transition: all 0.2s; }
+        .toss-button:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(61, 82, 160, 0.4); }
+        .fuel-input-wrapper { display: flex; align-items: center; }
+        .fuel-input { width: 100%; padding: 0.5rem; border: 1px solid var(--c-pale-blue); text-align: right; background-color: #f7f5fa; border-radius: 0.5rem 0 0 0.5rem; }
+        .fuel-adjust-btn { background-color: var(--c-pale-blue); color: var(--c-dark-blue); border: 1px solid var(--c-pale-blue); padding: 0.5rem; font-weight: bold; transition: background-color 0.2s;}
+        .fuel-adjust-btn:hover { background-color: var(--c-light-blue); }
+        .toggle-switch { position: relative; display: inline-block; width: 40px; height: 24px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--c-pale-blue); transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--c-dark-blue); }
+        input:checked + .slider:before { transform: translateX(16px); }
+    </style>
+</head>
+<body class="bg-c-bg">
+
+    <div id="hero-section" class="hero-section">
+        <div id="hero-canvas"></div>
+        <div class="z-10 px-4">
+            <h1 id="hero-title" class="text-4xl md:text-6xl font-extrabold" style="text-shadow: 0 2px 10px rgba(0,0,0,0.3)">MEPC 83 규제 시뮬레이터</h1>
+            <p id="hero-subtitle" class="mt-4 text-lg md:text-xl max-w-2xl mx-auto" style="text-shadow: 0 1px 5px rgba(0,0,0,0.3)">새로운 해운 규제, 더 이상 복잡하게 느끼지 마세요.<br>내 선박의 미래를 지금 바로 예측하고 대비하세요.</p>
+        </div>
+    </div>
+
+    <!-- Sidebar & Toggle Button -->
+    <button id="sidebar-toggle" class="fixed top-6 right-6 z-40 toss-button p-3 !rounded-full !bg-white/30 !backdrop-blur-md">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+    </button>
+    <aside id="sidebar" class="sidebar fixed top-0 right-0 w-full md:w-1/3 lg:w-1/4 h-full z-50 p-8 overflow-y-auto glass-ui !bg-white/70">
+        <div class="flex justify-between items-center mb-6"><h2 class="text-2xl font-bold">규제 핵심 개념</h2><button id="sidebar-close" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button></div>
+        <div class="space-y-8 text-[#3D52A0]">
+            <div><h3 class="text-xl font-bold">GFI (온실가스 집약도)</h3><p class="mt-2 text-gray-700">연료 1MJ당 배출하는 온실가스 양(Well-to-Wake 기준). 낮을수록 친환경적입니다.</p><p class="mt-2">$$GFI_{attained} = \frac{\sum (E_{j} \times EI_{j})}{E_{total}}$$</p></div>
+            <div><h3 class="text-xl font-bold">2중 규제 목표</h3><p class="mt-2 text-gray-700">2028년부터 2단계 목표치가 적용됩니다.</p><ul class="list-none space-y-2 mt-2"><li class="flex items-start"><span class="text-[var(--c-mid-blue)] font-bold mr-2">①</span><div><strong class="text-[var(--c-mid-blue)]">직접 준수 목표</strong>: 1차 목표선.</div></li><li class="flex items-start"><span class="text-[var(--c-dark-blue)] font-bold mr-2">②</span><div><strong class="text-[var(--c-dark-blue)]">기본 목표</strong>: 2차 목표선.</div></li></ul></div>
+            <div><h3 class="text-xl font-bold">추가 비용(RU) / 잉여분(SU)</h3><p class="mt-2 text-gray-700">목표 초과 시 비용이 발생하며, Tier 2 초과 시 부담이 더 커집니다.</p><ul class="list-none space-y-3 mt-4"><li><strong class="text-gray-600">Tier 1 비용:</strong><p class="text-sm">$$(\text{초과량}) \times \$100$$</p></li><li><strong class="text-gray-600">Tier 2 비용:</strong><p class="text-sm">$$(\text{Tier 1 초과분}) \times \$100 + (\text{Tier 2 초과분}) \times \$380$$</p></li></ul></div>
+            <div><h3 class="text-xl font-bold">CII 등급</h3><p class="mt-2 text-gray-700">선박 운항 효율 지표로 A~E 등급이 매겨집니다.</p><p class="mt-2">$$CII_{att.} = \frac{\sum (Fuel_{j} \times C_{F, j})}{Capacity \times Distance}$$</p></div>
+            <div><h3 class="text-xl font-bold">더 알아보기</h3><p class="mt-2 text-gray-700">자세한 내용은 IMO 공식 문서를 확인하세요.</p><a href="https://www.imo.org/en/MediaCentre/MeetingSummaries/Pages/MEPC-83rd-session.aspx" target="_blank" rel="noopener noreferrer" class="text-[var(--c-mid-blue)] hover:underline font-semibold block mt-2">IMO MEPC 83 요약 &rarr;</a></div>
+        </div>
+    </aside>
+
+    <!-- Modal for Calculation Details -->
+    <div id="modal-backdrop"><div id="modal-content" class="p-6 rounded-2xl glass-ui">
+        <div class="flex justify-between items-center"><h3 class="text-xl font-bold text-white">상세 계산 과정</h3><button id="modal-close" class="text-white/70 hover:text-white text-2xl">&times;</button></div>
+        <div id="calculation-details" class="mt-4 bg-black/10 p-4 rounded-lg text-sm space-y-4 text-white"></div>
+    </div></div>
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl -mt-20 relative z-10">
+        <main class="space-y-8">
+            <section class="content-card p-6 rounded-2xl">
+                <h2 class="text-2xl font-bold mb-1">1. 선박 및 운항 정보</h2>
+                <p class="text-gray-500 mb-6">CII 등급 계산에 필요한 정보를 입력하세요.</p>
+                <div class="grid md:grid-cols-2 gap-6 items-start">
+                    <div><label for="year" class="block text-lg font-medium mb-2">대상 연도</label><select id="year" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[var(--c-dark-blue)]"><option>2028</option><option>2029</option><option>2030</option><option>2031</option><option>2032</option><option>2033</option><option>2034</option><option>2035</option></select></div>
+                    <div><label for="shipType" class="block text-lg font-medium mb-2">선종</label><select id="shipType" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[var(--c-dark-blue)]"><option value="bulker">벌크선</option><option value="tanker">탱커</option><option value="container">컨테이너선</option></select></div>
+                    <div><label for="shipCapacity" class="block text-lg font-medium mb-2">재화중량(DWT)/총톤수(GT)</label><input type="number" id="shipCapacity" value="50000" class="fuel-input !rounded-md"></div>
+                    <div><label for="distance" class="block text-lg font-medium mb-2">연간 운항 거리 (해리)</label><input type="number" id="distance" value="40000" class="fuel-input !rounded-md"></div>
+                </div>
+            </section>
+            <section class="content-card p-6 rounded-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <div><h2 class="text-2xl font-bold mb-1">2. 연료 사용량</h2><p class="text-gray-500">연료별 연간 사용량을 입력하세요.</p></div>
+                    <div class="flex items-center text-sm"><label for="gfiToggle" class="mr-2">GFI 직접입력</label><label class="toggle-switch"><input type="checkbox" id="gfiToggle"><span class="slider"></span></label></div>
+                </div>
+                <div id="fuel-inputs"><div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><label for="fuelVLSFO" class="font-medium">VLSFO (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelVLSFO" value="10000" class="fuel-input"><button data-target="fuelVLSFO" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelVLSFO" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
+                    <div><label for="fuelLNG" class="font-medium">LNG (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelLNG" value="0" class="fuel-input"><button data-target="fuelLNG" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelLNG" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
+                    <div><label for="fuelMethanol" class="font-medium">Methanol (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelMethanol" value="0" class="fuel-input"><button data-target="fuelMethanol" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelMethanol" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
+                </div></div>
+                <div id="gfi-slider-input" class="hidden"><label for="fuelIntensity" class="block text-lg font-medium">평균 GFI (WtW): <span id="fuelIntensityValue" class="font-bold"></span> gCO₂eq/MJ</label><input type="range" id="fuelIntensity" min="5" max="110" value="95" step="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2"></div>
+                <div class="toss-card-output mt-6 p-4 rounded-xl flex items-center justify-center text-center"><p class="text-lg">내 선박의 달성 GFI는<br><span id="attainedGFIResult" class="font-bold text-3xl"></span></p></div>
+            </section>
+            <section class="content-card p-6 rounded-2xl">
+                <h2 class="text-2xl font-bold mb-1">3. 시뮬레이션 결과</h2>
+                <p class="text-gray-500 mb-6">내 선박의 규제 준수 현황을 확인하세요.</p>
+                <div id="p5-canvas-container" class="w-full h-96 rounded-lg border border-[var(--c-pale-blue)] bg-white mt-4"></div>
+                <div class="grid md:grid-cols-3 gap-4 mt-6 text-center">
+                    <div class="bg-[var(--c-bg)] p-4 rounded-lg"><h4 class="font-bold text-[var(--c-light-blue)]">GFI 준수 상태</h4><p id="complianceStatus" class="text-2xl font-bold mt-1">-</p></div>
+                    <div class="bg-[var(--c-bg)] p-4 rounded-lg"><h4 class="font-bold text-[var(--c-light-blue)]">예상 추가 비용</h4><p id="complianceCost" class="text-2xl font-bold mt-1">-</p></div>
+                    <div class="bg-[var(--c-bg)] p-4 rounded-lg"><h4 class="font-bold text-[var(--c-light-blue)]">CII 예상 등급</h4><p id="ciiRating" class="text-2xl font-bold mt-1">-</p></div>
+                </div>
+                <div class="text-center mt-6"><button id="calculation-toggle" class="text-[var(--c-light-blue)] font-semibold">계산 과정 보기</button></div>
+            </section>
+        </main>
+    </div>
+    
+    <footer style="background: #f8f9fa; border-top: 1px solid #f2f4f6; padding: 32px 24px; text-align: center; margin-top: 48px;">
+        <div style="max-width: 1080px; margin: 0 auto;">
+            <p style="color: #8b95a1; font-size: 14px; margin-bottom: 16px;">Written by <strong><a href="https://woojingo.notion.site/" target="_blank" rel="noopener noreferrer" style="color: #3182f6; text-decoration: none; font-weight: 600;">Woojin Go</a></strong></p>
+            <div style="margin-bottom: 16px;"><a href="https://www.buymeacoffee.com/woojingo" target="_blank" rel="noopener noreferrer" style="display: inline-block; transition: transform 0.2s ease;"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-red.png" alt="Buy Me A Coffee" style="height: 40px; width: 145px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"></a></div>
+            <p style="color: #8b95a1; font-size: 12px; margin-top: 16px;">🚀 이 프로젝트가 도움이 되셨다면 커피 한 잔으로 응원해주세요!</p>
+        </div>
+    </footer>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const FUEL_DATA = {'vlsfo': { lcv: 41.5, wtwGFI: 94.6, cf: 3.114 }, 'lng': { lcv: 48.0, wtwGFI: 78.4, cf: 2.750 }, 'methanol': { lcv: 19.9, wtwGFI: 91.8, cf: 1.375 }};
+        const GFI_BASELINE = 93.3;
+        const GFI_TARGETS = { 2028: { direct: 17.0, base: 4.0 }, 2029: { direct: 19.0, base: 6.0 }, 2030: { direct: 21.0, base: 8.0 }, 2031: { direct: 25.4, base: 12.4 }, 2032: { direct: 29.8, base: 16.8 }, 2033: { direct: 34.2, base: 21.2 }, 2034: { direct: 38.6, base: 25.6 }, 2035: { direct: 43.0, base: 30.0 }, };
+        const CII_PARAMS = { 'bulker': { a: 988.87, c: 0.479 }, 'tanker': { a: 1192.17, c: 0.485 }, 'container': { a: 442.14, c: 0.359 } };
+        const CII_Z_FACTORS = { 2028: 16.250, 2029: 18.875, 2030: 21.500, 2031: 21.5, 2032: 21.5, 2033: 21.5, 2034: 21.5, 2035: 21.5 };
+        const CII_RATING_BOUNDARIES = { 'A': -6.5, 'B': -1.5, 'C': 1.5, 'D': 6.5 };
+        const ZNZ_THRESHOLD = { until2034: 19.0, from2035: 14.0 };
+        const RU_PRICE_TIER1 = 100, RU_PRICE_TIER2 = 380;
+        
+        const dom = {
+            year: document.getElementById('year'), shipType: document.getElementById('shipType'), shipCapacity: document.getElementById('shipCapacity'), distance: document.getElementById('distance'),
+            fuelVLSFO: document.getElementById('fuelVLSFO'), fuelLNG: document.getElementById('fuelLNG'), fuelMethanol: document.getElementById('fuelMethanol'),
+            gfiToggle: document.getElementById('gfiToggle'), fuelInputs: document.getElementById('fuel-inputs'), gfiSliderInput: document.getElementById('gfi-slider-input'),
+            fuelIntensity: document.getElementById('fuelIntensity'), fuelIntensityValue: document.getElementById('fuelIntensityValue'),
+            attainedGFIResult: document.getElementById('attainedGFIResult'), complianceStatus: document.getElementById('complianceStatus'), complianceCost: document.getElementById('complianceCost'),
+            ciiRating: document.getElementById('ciiRating'), sidebar: document.getElementById('sidebar'), sidebarToggle: document.getElementById('sidebar-toggle'),
+            sidebarClose: document.getElementById('sidebar-close'), calculationToggle: document.getElementById('calculation-toggle'), calculationDetails: document.getElementById('calculation-details'),
+            modalBackdrop: document.getElementById('modal-backdrop'), modalClose: document.getElementById('modal-close'), fuelAdjustBtns: document.querySelectorAll('.fuel-adjust-btn')
+        };
+        let p5Chart, p5Hero;
+
+        function calculateGFI() {
+            if (dom.gfiToggle.checked) return parseFloat(dom.fuelIntensity.value);
+            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0;
+            const eV = v * FUEL_DATA.vlsfo.lcv * 1000, eL = l * FUEL_DATA.lng.lcv * 1000, eM = m * FUEL_DATA.methanol.lcv * 1000;
+            const totalE = eV + eL + eM;
+            if (totalE === 0) return 0;
+            const totalGHG = (eV * FUEL_DATA.vlsfo.wtwGFI) + (eL * FUEL_DATA.lng.wtwGFI) + (eM * FUEL_DATA.methanol.wtwGFI);
+            return totalGHG / totalE;
+        }
+
+        function calculateCII() {
+            const type = dom.shipType.value, cap = parseFloat(dom.shipCapacity.value), dist = parseFloat(dom.distance.value);
+            if (!cap || !dist || cap <= 0 || dist <= 0) return { rating: '정보부족', details: {} };
+            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0;
+            const totalCO2 = v * FUEL_DATA.vlsfo.cf + l * FUEL_DATA.lng.cf + m * FUEL_DATA.methanol.cf;
+            const attained = totalCO2 / (cap * dist), params = CII_PARAMS[type], year = parseInt(dom.year.value), z = CII_Z_FACTORS[year] || 21.5;
+            const ref = params.a * Math.pow(cap, -params.c), req = ref * (1 - z / 100), dev = (attained / req - 1) * 100;
+            let rating = 'E (매우 미흡)';
+            if (dev <= CII_RATING_BOUNDARIES.A) rating = 'A (매우 우수)'; else if (dev <= CII_RATING_BOUNDARIES.B) rating = 'B (우수)';
+            else if (dev <= CII_RATING_BOUNDARIES.C) rating = 'C (보통)'; else if (dev <= CII_RATING_BOUNDARIES.D) rating = 'D (미흡)';
+            return { rating, details: { totalCO2, capacity: cap, distance: dist, attainedCII: attained, requiredCII_ref: ref, zFactor: z, requiredCII: req, deviation: dev, rating } };
+        }
+
+        function getCompliance(gfi) {
+            const year = parseInt(dom.year.value), targets = GFI_TARGETS[year], direct = GFI_BASELINE * (1 - targets.direct / 100), base = GFI_BASELINE * (1 - targets.base / 100);
+            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0;
+            const totalEnergyGJ = v * FUEL_DATA.vlsfo.lcv + l * FUEL_DATA.lng.lcv + m * FUEL_DATA.methanol.lcv;
+            let status = '준수', cost = 0, surplus = 0; const totalGHG = (g, e) => (g * e) / 1000;
+            const znz = year < 2035 ? ZNZ_THRESHOLD.until2034 : ZNZ_THRESHOLD.from2035;
+            if (gfi > base) {
+                status = 'Tier 2 미준수'; const att = totalGHG(gfi, totalEnergyGJ), dir = totalGHG(direct, totalEnergyGJ), bas = totalGHG(base, totalEnergyGJ);
+                cost = (bas - dir) * RU_PRICE_TIER1 + (att - bas) * RU_PRICE_TIER2;
+            } else if (gfi > direct) {
+                status = 'Tier 1 미준수'; cost = (totalGHG(gfi, totalEnergyGJ) - totalGHG(direct, totalEnergyGJ)) * RU_PRICE_TIER1;
+            } else { surplus = totalGHG(direct, totalEnergyGJ) - totalGHG(gfi, totalEnergyGJ); if (gfi <= znz) status = 'ZNZ 달성!'; else if (surplus > 0) status = '우수해요!'; }
+            return { status, cost, ghgSurplus: surplus, directTargetGFI: direct, baseTargetGFI: base };
+        }
+
+        function updateUI() {
+            const gfi = calculateGFI();
+            dom.attainedGFIResult.textContent = `${gfi.toFixed(2)} gCO₂eq/MJ`;
+            if (dom.gfiToggle.checked) dom.fuelIntensityValue.textContent = parseFloat(dom.fuelIntensity.value).toFixed(1);
+            const compliance = getCompliance(gfi);
+            dom.complianceStatus.textContent = compliance.status;
+            dom.complianceCost.textContent = (compliance.cost > 0) ? `$${Math.round(compliance.cost).toLocaleString()}` : '비용 없음';
+            dom.complianceCost.style.color = (compliance.cost > 0) ? '#D92D20' : 'var(--c-dark-blue)';
+            const cii = calculateCII(); dom.ciiRating.textContent = cii.rating;
+            if (p5Chart && typeof p5Chart.updateData === 'function') p5Chart.updateData({ year: parseInt(dom.year.value), attainedGFI: gfi, ...compliance });
+            updateCalculationDetails(gfi, compliance, cii.details);
+        }
+
+        function updateCalculationDetails(gfi, gfiDetails, ciiDetails) {
+            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0;
+            const totalE = (v * FUEL_DATA.vlsfo.lcv + l * FUEL_DATA.lng.lcv + m * FUEL_DATA.methanol.lcv) * 1000;
+            const totalGHG = ((v * FUEL_DATA.vlsfo.lcv * FUEL_DATA.vlsfo.wtwGFI) + (l * FUEL_DATA.lng.lcv * FUEL_DATA.lng.wtwGFI) + (m * FUEL_DATA.methanol.lcv * FUEL_DATA.methanol.wtwGFI)) / 1e6;
+            const gfiHtml = `<div class="p-3 bg-white/10 rounded-md"><h4 class="font-bold text-base mb-2 text-white/80">달성 GFI</h4><p class="text-xs text-gray-300">*연료계수는 IMO 가이드라인 참조</p><p class="mt-1 font-mono text-xs">= ${totalGHG.toFixed(0)} t * 10^6 g/t / ${totalE.toLocaleString('en-US',{maximumFractionDigits:0})} MJ = <strong class="text-lg">${gfi.toFixed(2)} gCO₂eq/MJ</strong></p></div>`;
+            const costHtml = `<div class="p-3 bg-white/10 rounded-md"><h4 class="font-bold text-base mb-2 text-white/80">추가 비용</h4>${gfiDetails.cost > 0 ? `<p class="mt-1 font-mono text-xs">Tier: <strong>${gfiDetails.status}</strong>, 최종 비용: <strong class="text-lg">$${Math.round(gfiDetails.cost).toLocaleString()}</strong></p>` : `<p>비용 없음 ${gfiDetails.ghgSurplus > 0 ? `<strong>(잉여 SU: ${Math.round(gfiDetails.ghgSurplus).toLocaleString()}톤)</strong>` : ''}</p>`}</div>`;
+            const ciiHtml = `<div class="p-3 bg-white/10 rounded-md"><h4 class="font-bold text-base mb-2 text-white/80">CII 등급</h4>${ciiDetails.attainedCII ? `<p class="text-xs text-gray-300">*CII계수: MEPC.352(78) 참조</p><p class="text-xs">선종별 계수(a, c): ${CII_PARAMS[dom.shipType.value].a}, ${CII_PARAMS[dom.shipType.value].c}</p><p class="mt-1 font-mono text-xs">달성CII = ${ciiDetails.totalCO2.toFixed(1)}t / (${ciiDetails.capacity.toLocaleString()} * ${ciiDetails.distance.toLocaleString()}) = <strong>${ciiDetails.attainedCII.toFixed(2)}</strong><br/>요구CII = ${ciiDetails.requiredCII_ref.toFixed(2)} * (1 - ${ciiDetails.zFactor}/100) = <strong>${ciiDetails.requiredCII.toFixed(2)}</strong><br/>편차: <strong>${ciiDetails.deviation.toFixed(1)}%</strong> ⟹ 등급: <strong>${ciiDetails.rating}</strong></p>` : `<p>정보부족</p>`}</div>`;
+            dom.calculationDetails.innerHTML = gfiHtml + costHtml + ciiHtml;
+        }
+
+        const p5_chart_sketch = (p) => {
+            let data = {};
+            const padding = { top: 30, right: 30, bottom: 40, left: 60 };
+            const colors = { bg: '#FFFFFF', line1: '#3D52A0', line2: '#7091E6', grid: '#EDE8F5', text: '#3D52A0' };
+            p.setup = () => { const c = document.getElementById('p5-canvas-container'); p.createCanvas(c.offsetWidth, c.offsetHeight).parent(c); p.noLoop(); p.textFont('Pretendard'); window.addEventListener('resize', () => { p.resizeCanvas(c.offsetWidth, c.offsetHeight); p.redraw(); }); };
+            p.updateData = (newData) => { data = newData; p.redraw(); };
+            p.draw = () => { p.background(colors.bg); if (!data.year) return; drawAxes(p, padding, colors, 40, 100, 2028, 2035); drawTargetLines(p, padding, colors, 40, 100, 2028, 2035); drawShipPoint(p, padding, colors, 40, 100, 2028, 2035, data); drawLegend(p, padding, colors); };
+            function drawAxes(p, pd, c, minGFI, maxGFI, minY, maxY) {
+                p.push(); p.stroke(c.grid); p.strokeWeight(1); p.line(pd.left, pd.top, pd.left, p.height - pd.bottom); p.line(pd.left, p.height - pd.bottom, p.width - pd.right, p.height - pd.bottom); p.textAlign(p.CENTER, p.CENTER); p.noStroke(); p.fill(c.text); p.textSize(12);
+                p.push(); p.translate(pd.left - 45, p.height/2); p.rotate(-p.HALF_PI); p.text('GFI (gCO₂eq/MJ)', 0, 0); p.pop(); p.text('연도', p.width / 2, p.height - 15);
+                p.textAlign(p.RIGHT, p.CENTER); for (let i = minGFI; i <= maxGFI; i += 10) { const y = p.map(i, minGFI, maxGFI, p.height - pd.bottom, pd.top); p.text(i, pd.left - 8, y); p.stroke(c.grid); p.line(pd.left, y, p.width - pd.right, y); }
+                p.textAlign(p.CENTER, p.TOP); for (let i = minY; i <= maxY; i++) { if (i % 2 == 0) { const x = p.map(i, minY - 0.5, maxY + 0.5, pd.left, p.width - pd.right); p.noStroke(); p.text(i, x, p.height - pd.bottom + 8); } }
+                p.pop();
+            }
+            function drawTargetLines(p, pd, c, minGFI, maxGFI, minY, maxY) {
+                p.strokeWeight(3); p.noFill(); p.stroke(c.line1); p.beginShape();
+                for(let y = minY; y <= maxY; y++) p.vertex(p.map(y, minY - 0.5, maxY + 0.5, pd.left, p.width - pd.right), p.map(GFI_BASELINE * (1 - GFI_TARGETS[y].base / 100), minGFI, maxGFI, p.height - pd.bottom, pd.top));
+                p.endShape(); p.stroke(c.line2); p.beginShape();
+                for(let y = minY; y <= maxY; y++) p.vertex(p.map(y, minY - 0.5, maxY + 0.5, pd.left, p.width - pd.right), p.map(GFI_BASELINE * (1 - GFI_TARGETS[y].direct / 100), minGFI, maxGFI, p.height - pd.bottom, pd.top));
+                p.endShape();
+            }
+            function drawShipPoint(p, pd, c, minGFI, maxGFI, minY, maxY, data) {
+                if(data.attainedGFI === undefined) return;
+                const x = p.map(data.year, minY - 0.5, maxY + 0.5, pd.left, p.width - pd.right);
+                const y = p.map(data.attainedGFI, minGFI, maxGFI, p.height - pd.bottom, pd.top);
+                let pc = '#8697C4'; if (data.status === 'Tier 2 미준수') pc = '#d94848'; else if (data.status === 'Tier 1 미준수') pc = '#E8955A';
+                else if (data.status.includes('ZNZ')) pc = '#039855'; else if (data.status.includes('우수')) pc = '#3D52A0';
+                p.stroke(255); p.strokeWeight(4); p.fill(pc); p.ellipse(x, y, 20, 20);
+                p.noStroke(); p.fill('white'); p.textAlign(p.CENTER, p.CENTER);p.textSize(10); p.text('내 선박', x, y);
+            }
+            function drawLegend(p, pd, c) {
+                const items = [{ label: '기본 목표', color: c.line1 }, { label: '직접 준수 목표', color: c.line2 }];
+                p.textSize(12); p.textAlign(p.LEFT, p.CENTER);
+                items.forEach((item, i) => { const y = pd.top + i * 20; p.stroke(item.color); p.strokeWeight(2); p.line(pd.left + 10, y, pd.left + 30, y); p.noStroke(); p.fill(c.text); p.text(item.label, pd.left + 40, y); });
+            }
+        };
+
+        const p5_hero_sketch = (p) => {
+            let particles = [];
+            p.setup = () => { const c = document.getElementById('hero-canvas'); p.createCanvas(c.offsetWidth, c.offsetHeight).parent(c); for (let i = 0; i < 100; i++) particles.push(new Particle(p)); };
+            p.draw = () => { p.background('#3D52A0'); particles.forEach(pt => { pt.createParticle(); pt.moveParticle(); pt.joinParticles(particles); }); };
+            p.windowResized = () => { const c = document.getElementById('hero-canvas'); p.resizeCanvas(c.offsetWidth, c.offsetHeight); }
+            class Particle {
+                constructor(p){ this.p = p; this.x = p.random(0, p.width); this.y = p.random(0, p.height); this.r = p.random(1, 3); this.xSpeed = p.random(-0.5, 0.5); this.ySpeed = p.random(-0.5, 0.5); }
+                createParticle(){ this.p.noStroke(); this.p.fill('rgba(173, 187, 218, 0.5)'); this.p.circle(this.x, this.y, this.r * 2); }
+                moveParticle(){ if(this.x < 0 || this.x > this.p.width) this.xSpeed *= -1; if(this.y < 0 || this.y > this.p.height) this.ySpeed *= -1; this.x += this.xSpeed; this.y += this.ySpeed; }
+                joinParticles(others){ others.forEach(o => { let d = this.p.dist(this.x, this.y, o.x, o.y); if (d < 85) { this.p.stroke('rgba(173, 187, 218, 0.2)'); this.p.line(this.x, this.y, o.x, o.y); } }); }
+            }
+        };
+        
+        gsap.registerPlugin(ScrollTrigger);
+        gsap.from("#hero-title", { duration: 1, y: 50, opacity: 0, delay: 0.2, ease: "power3.out" });
+        gsap.from("#hero-subtitle", { duration: 1, y: 50, opacity: 0, delay: 0.4, ease: "power3.out" });
+        gsap.utils.toArray('.content-card').forEach(card => { ScrollTrigger.create({ trigger: card, start: "top 85%", toggleClass: "is-visible", once: true }); });
+        
+        p5Chart = new p5(p5_chart_sketch);
+        p5Hero = new p5(p5_hero_sketch);
+        
+        const inputs = [dom.year, dom.shipType, dom.shipCapacity, dom.distance, dom.fuelVLSFO, dom.fuelLNG, dom.fuelMethanol, dom.fuelIntensity, dom.gfiToggle];
+        inputs.forEach(el => { if (el) el.addEventListener('input', updateUI); });
+        
+        dom.fuelAdjustBtns.forEach(btn => { btn.addEventListener('click', () => { const t = document.getElementById(btn.dataset.target); t.value = Math.max(0, (parseInt(t.value)||0) + parseInt(btn.dataset.amount)); updateUI(); }); });
+        dom.gfiToggle.addEventListener('change', () => { dom.fuelInputs.classList.toggle('hidden'); dom.gfiSliderInput.classList.toggle('hidden'); updateUI(); });
+        dom.sidebarToggle.addEventListener('click', () => dom.sidebar.classList.add('open'));
+        dom.sidebarClose.addEventListener('click', () => dom.sidebar.classList.remove('open'));
+        dom.calculationToggle.addEventListener('click', () => { updateUI(); dom.modalBackdrop.classList.add('visible'); });
+        dom.modalClose.addEventListener('click', () => dom.modalBackdrop.classList.remove('visible'));
+        dom.modalBackdrop.addEventListener('click', (e) => { if (e.target === dom.modalBackdrop) dom.modalBackdrop.classList.remove('visible'); });
+        
+        updateUI();
+        if (window.renderMathInElement) renderMathInElement(document.body, { delimiters: [ {left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false} ] });
+    });
+    </script>
+</body>
+</html>
