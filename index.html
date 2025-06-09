@@ -93,11 +93,14 @@
                     <div><h2 class="text-2xl font-bold mb-1">2. 연료 사용량</h2><p class="text-gray-500">연료별 연간 사용량을 입력하세요.</p></div>
                     <div class="flex items-center text-sm"><label for="gfiToggle" class="mr-2">GFI 직접입력</label><label class="toggle-switch"><input type="checkbox" id="gfiToggle"><span class="slider"></span></label></div>
                 </div>
-                <div id="fuel-inputs"><div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><label for="fuelVLSFO" class="font-medium">VLSFO (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelVLSFO" value="10000" class="fuel-input"><button data-target="fuelVLSFO" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelVLSFO" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
-                    <div><label for="fuelLNG" class="font-medium">LNG (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelLNG" value="0" class="fuel-input"><button data-target="fuelLNG" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelLNG" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
-                    <div><label for="fuelMethanol" class="font-medium">Methanol (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelMethanol" value="0" class="fuel-input"><button data-target="fuelMethanol" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelMethanol" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
-                </div></div>
+                <div id="fuel-inputs">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label for="fuelVLSFO" class="font-medium">VLSFO (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelVLSFO" value="10000" class="fuel-input"><button data-target="fuelVLSFO" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelVLSFO" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
+                        <div><label for="fuelLNG" class="font-medium">LNG (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelLNG" value="0" class="fuel-input"><button data-target="fuelLNG" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelLNG" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
+                        <div><label for="fuelMethanol" class="font-medium">Methanol (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelMethanol" value="0" class="fuel-input"><button data-target="fuelMethanol" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelMethanol" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
+                        <div><label for="fuelAmmonia" class="font-medium">Ammonia (톤)</label><div class="fuel-input-wrapper mt-1"><input type="number" id="fuelAmmonia" value="0" class="fuel-input"><button data-target="fuelAmmonia" data-amount="-100" class="fuel-adjust-btn">-</button><button data-target="fuelAmmonia" data-amount="100" class="fuel-adjust-btn rounded-r-md">+</button></div></div>
+                    </div>
+                </div>
                 <div id="gfi-slider-input" class="hidden"><label for="fuelIntensity" class="block text-lg font-medium">평균 GFI (WtW): <span id="fuelIntensityValue" class="font-bold"></span> gCO₂eq/MJ</label><input type="range" id="fuelIntensity" min="5" max="110" value="95" step="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-2"></div>
                 <div class="toss-card-output mt-6 p-4 rounded-xl flex items-center justify-center text-center"><p class="text-lg">내 선박의 달성 GFI는<br><span id="attainedGFIResult" class="font-bold text-3xl"></span></p></div>
             </section>
@@ -125,7 +128,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const FUEL_DATA = {'vlsfo': { lcv: 41.5, wtwGFI: 94.6, cf: 3.114 }, 'lng': { lcv: 48.0, wtwGFI: 78.4, cf: 2.750 }, 'methanol': { lcv: 19.9, wtwGFI: 91.8, cf: 1.375 }};
+        const FUEL_DATA = {'vlsfo': { lcv: 41.5, wtwGFI: 94.6, cf: 3.114 }, 'lng': { lcv: 48.0, wtwGFI: 78.4, cf: 2.750 }, 'methanol': { lcv: 19.9, wtwGFI: 91.8, cf: 1.375 }, 'ammonia': { lcv: 18.6, wtwGFI: 8.0, cf: 0 }};
         const GFI_BASELINE = 93.3;
         const GFI_TARGETS = { 2028: { direct: 17.0, base: 4.0 }, 2029: { direct: 19.0, base: 6.0 }, 2030: { direct: 21.0, base: 8.0 }, 2031: { direct: 25.4, base: 12.4 }, 2032: { direct: 29.8, base: 16.8 }, 2033: { direct: 34.2, base: 21.2 }, 2034: { direct: 38.6, base: 25.6 }, 2035: { direct: 43.0, base: 30.0 }, };
         const CII_PARAMS = { 'bulker': { a: 988.87, c: 0.479 }, 'tanker': { a: 1192.17, c: 0.485 }, 'container': { a: 442.14, c: 0.359 } };
@@ -136,7 +139,7 @@
         
         const dom = {
             year: document.getElementById('year'), shipType: document.getElementById('shipType'), shipCapacity: document.getElementById('shipCapacity'), distance: document.getElementById('distance'),
-            fuelVLSFO: document.getElementById('fuelVLSFO'), fuelLNG: document.getElementById('fuelLNG'), fuelMethanol: document.getElementById('fuelMethanol'),
+            fuelVLSFO: document.getElementById('fuelVLSFO'), fuelLNG: document.getElementById('fuelLNG'), fuelMethanol: document.getElementById('fuelMethanol'), fuelAmmonia: document.getElementById('fuelAmmonia'),
             gfiToggle: document.getElementById('gfiToggle'), fuelInputs: document.getElementById('fuel-inputs'), gfiSliderInput: document.getElementById('gfi-slider-input'),
             fuelIntensity: document.getElementById('fuelIntensity'), fuelIntensityValue: document.getElementById('fuelIntensityValue'),
             attainedGFIResult: document.getElementById('attainedGFIResult'), complianceStatus: document.getElementById('complianceStatus'), complianceCost: document.getElementById('complianceCost'),
@@ -148,19 +151,19 @@
 
         function calculateGFI() {
             if (dom.gfiToggle.checked) return parseFloat(dom.fuelIntensity.value);
-            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0;
-            const eV = v * FUEL_DATA.vlsfo.lcv * 1000, eL = l * FUEL_DATA.lng.lcv * 1000, eM = m * FUEL_DATA.methanol.lcv * 1000;
-            const totalE = eV + eL + eM;
+            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0, a = parseFloat(dom.fuelAmmonia.value) || 0;
+            const eV = v * FUEL_DATA.vlsfo.lcv * 1000, eL = l * FUEL_DATA.lng.lcv * 1000, eM = m * FUEL_DATA.methanol.lcv * 1000, eA = a * FUEL_DATA.ammonia.lcv * 1000;
+            const totalE = eV + eL + eM + eA;
             if (totalE === 0) return 0;
-            const totalGHG = (eV * FUEL_DATA.vlsfo.wtwGFI) + (eL * FUEL_DATA.lng.wtwGFI) + (eM * FUEL_DATA.methanol.wtwGFI);
+            const totalGHG = (eV * FUEL_DATA.vlsfo.wtwGFI) + (eL * FUEL_DATA.lng.wtwGFI) + (eM * FUEL_DATA.methanol.wtwGFI) + (eA * FUEL_DATA.ammonia.wtwGFI);
             return totalGHG / totalE;
         }
 
         function calculateCII() {
             const type = dom.shipType.value, cap = parseFloat(dom.shipCapacity.value), dist = parseFloat(dom.distance.value);
             if (!cap || !dist || cap <= 0 || dist <= 0) return { rating: '정보부족', details: {} };
-            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0;
-            const totalCO2 = v * FUEL_DATA.vlsfo.cf + l * FUEL_DATA.lng.cf + m * FUEL_DATA.methanol.cf;
+            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0, a = parseFloat(dom.fuelAmmonia.value) || 0;
+            const totalCO2 = v * FUEL_DATA.vlsfo.cf + l * FUEL_DATA.lng.cf + m * FUEL_DATA.methanol.cf + a * FUEL_DATA.ammonia.cf;
             const attained = totalCO2 / (cap * dist), params = CII_PARAMS[type], year = parseInt(dom.year.value), z = CII_Z_FACTORS[year] || 21.5;
             const ref = params.a * Math.pow(cap, -params.c), req = ref * (1 - z / 100), dev = (attained / req - 1) * 100;
             let rating = 'E (매우 미흡)';
@@ -171,8 +174,8 @@
 
         function getCompliance(gfi) {
             const year = parseInt(dom.year.value), targets = GFI_TARGETS[year], direct = GFI_BASELINE * (1 - targets.direct / 100), base = GFI_BASELINE * (1 - targets.base / 100);
-            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0;
-            const totalEnergyGJ = v * FUEL_DATA.vlsfo.lcv + l * FUEL_DATA.lng.lcv + m * FUEL_DATA.methanol.lcv;
+            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0, a = parseFloat(dom.fuelAmmonia.value) || 0;
+            const totalEnergyGJ = v * FUEL_DATA.vlsfo.lcv + l * FUEL_DATA.lng.lcv + m * FUEL_DATA.methanol.lcv + a * FUEL_DATA.ammonia.lcv;
             let status = '준수', cost = 0, surplus = 0; const totalGHG = (g, e) => (g * e) / 1000;
             const znz = year < 2035 ? ZNZ_THRESHOLD.until2034 : ZNZ_THRESHOLD.from2035;
             if (gfi > base) {
@@ -198,9 +201,9 @@
         }
 
         function updateCalculationDetails(gfi, gfiDetails, ciiDetails) {
-            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0;
-            const totalE = (v * FUEL_DATA.vlsfo.lcv + l * FUEL_DATA.lng.lcv + m * FUEL_DATA.methanol.lcv) * 1000;
-            const totalGHG = ((v * FUEL_DATA.vlsfo.lcv * FUEL_DATA.vlsfo.wtwGFI) + (l * FUEL_DATA.lng.lcv * FUEL_DATA.lng.wtwGFI) + (m * FUEL_DATA.methanol.lcv * FUEL_DATA.methanol.wtwGFI)) / 1e6;
+            const v = parseFloat(dom.fuelVLSFO.value) || 0, l = parseFloat(dom.fuelLNG.value) || 0, m = parseFloat(dom.fuelMethanol.value) || 0, a = parseFloat(dom.fuelAmmonia.value) || 0;
+            const totalE = (v * FUEL_DATA.vlsfo.lcv + l * FUEL_DATA.lng.lcv + m * FUEL_DATA.methanol.lcv + a * FUEL_DATA.ammonia.lcv) * 1000;
+            const totalGHG = ((v * FUEL_DATA.vlsfo.lcv * FUEL_DATA.vlsfo.wtwGFI) + (l * FUEL_DATA.lng.lcv * FUEL_DATA.lng.wtwGFI) + (m * FUEL_DATA.methanol.lcv * FUEL_DATA.methanol.wtwGFI) + (a * FUEL_DATA.ammonia.lcv * FUEL_DATA.ammonia.wtwGFI)) / 1e6;
             const gfiHtml = `<div class="p-3 bg-white/10 rounded-md"><h4 class="font-bold text-base mb-2 text-white/80">달성 GFI</h4><p class="text-xs text-gray-300">*연료계수는 IMO 가이드라인 참조</p><p class="mt-1 font-mono text-xs">= ${totalGHG.toFixed(0)} t * 10^6 g/t / ${totalE.toLocaleString('en-US',{maximumFractionDigits:0})} MJ = <strong class="text-lg">${gfi.toFixed(2)} gCO₂eq/MJ</strong></p></div>`;
             const costHtml = `<div class="p-3 bg-white/10 rounded-md"><h4 class="font-bold text-base mb-2 text-white/80">추가 비용</h4>${gfiDetails.cost > 0 ? `<p class="mt-1 font-mono text-xs">Tier: <strong>${gfiDetails.status}</strong>, 최종 비용: <strong class="text-lg">$${Math.round(gfiDetails.cost).toLocaleString()}</strong></p>` : `<p>비용 없음 ${gfiDetails.ghgSurplus > 0 ? `<strong>(잉여 SU: ${Math.round(gfiDetails.ghgSurplus).toLocaleString()}톤)</strong>` : ''}</p>`}</div>`;
             const ciiHtml = `<div class="p-3 bg-white/10 rounded-md"><h4 class="font-bold text-base mb-2 text-white/80">CII 등급</h4>${ciiDetails.attainedCII ? `<p class="text-xs text-gray-300">*CII계수: MEPC.352(78) 참조</p><p class="text-xs">선종별 계수(a, c): ${CII_PARAMS[dom.shipType.value].a}, ${CII_PARAMS[dom.shipType.value].c}</p><p class="mt-1 font-mono text-xs">달성CII = ${ciiDetails.totalCO2.toFixed(1)}t / (${ciiDetails.capacity.toLocaleString()} * ${ciiDetails.distance.toLocaleString()}) = <strong>${ciiDetails.attainedCII.toFixed(2)}</strong><br/>요구CII = ${ciiDetails.requiredCII_ref.toFixed(2)} * (1 - ${ciiDetails.zFactor}/100) = <strong>${ciiDetails.requiredCII.toFixed(2)}</strong><br/>편차: <strong>${ciiDetails.deviation.toFixed(1)}%</strong> ⟹ 등급: <strong>${ciiDetails.rating}</strong></p>` : `<p>정보부족</p>`}</div>`;
@@ -265,7 +268,7 @@
         p5Chart = new p5(p5_chart_sketch);
         p5Hero = new p5(p5_hero_sketch);
         
-        const inputs = [dom.year, dom.shipType, dom.shipCapacity, dom.distance, dom.fuelVLSFO, dom.fuelLNG, dom.fuelMethanol, dom.fuelIntensity, dom.gfiToggle];
+        const inputs = [dom.year, dom.shipType, dom.shipCapacity, dom.distance, dom.fuelVLSFO, dom.fuelLNG, dom.fuelMethanol, dom.fuelAmmonia, dom.fuelIntensity, dom.gfiToggle];
         inputs.forEach(el => { if (el) el.addEventListener('input', updateUI); });
         
         dom.fuelAdjustBtns.forEach(btn => { btn.addEventListener('click', () => { const t = document.getElementById(btn.dataset.target); t.value = Math.max(0, (parseInt(t.value)||0) + parseInt(btn.dataset.amount)); updateUI(); }); });
